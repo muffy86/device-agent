@@ -56,7 +56,14 @@ const log = $('#log');
 const store = {
   get token() { return localStorage.getItem('da_token') || ''; },
   set token(v) { localStorage.setItem('da_token', v); },
+  get api() { return localStorage.getItem('da_api') || ''; },
+  set api(v) { localStorage.setItem('da_api', v); },
 };
+
+// Inside the Android shell the page is loaded from file://, where relative URLs
+// have no meaning, so the core is reached on loopback. Override in settings.
+const API = store.api || (location.protocol === 'file:' ? 'http://127.0.0.1:8787' : '');
+const call = (path, init) => fetch(API + path, init);
 
 function el(tag, cls, text) {
   const n = document.createElement(tag);
@@ -85,7 +92,7 @@ function toolCard(pending) {
 async function usage() {
   if (!store.token) return;
   try {
-    const r = await fetch('/v1/usage', { headers: { authorization: `Bearer ${store.token}` } });
+    const r = await call('/v1/usage', { headers: { authorization: `Bearer ${store.token}` } });
     if (!r.ok) return;
     const j = await r.json();
     $('#spent').textContent = `$${j.spent_usd.toFixed(4)}`;
@@ -115,6 +122,8 @@ $('#settings').onclick = () => {
   const t = prompt('Bearer token (blank clears):', store.token);
   if (t === null) return;
   store.token = t.trim();
+  const a = prompt('Core API base URL (blank = same origin):', store.api);
+  if (a !== null) store.api = a.trim();
   location.reload();
 };
 
@@ -140,7 +149,7 @@ $('#f').onsubmit = async (e) => {
   let card = null;
 
   try {
-    const res = await fetch('/v1/chat', {
+    const res = await call('/v1/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${store.token}` },
       body: JSON.stringify({ task }),

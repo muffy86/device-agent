@@ -74,16 +74,29 @@ const provider = flag('mock')
   ? (await import('../../packages/core/src/providers.js')).createProvider({ DEVICE_AGENT_PROVIDER: 'mock' })
   : createProvider(process.env);
 
+let inline = false;   // true while a streamed delta has no trailing newline yet
 const say = (o) => {
   if (asJson) return void console.log(JSON.stringify(o));
   switch (o.type) {
     case 'start': console.error(`provider=${o.provider} model=${o.model} cap=$${o.budgetUsd}`); break;
-    case 'delta': process.stdout.write(o.text); break;
-    case 'step': if (!o.toolCalls.length) process.stdout.write('\n'); break;
-    case 'tool_ok': console.error(`  ✓ ${o.name} → ${String(o.result).split('\n')[0].slice(0, 120)}`); break;
-    case 'tool_error': case 'tool_denied': console.error(`  ✗ ${o.name}: ${o.message || o.reason}`); break;
-    case 'budget_exceeded': console.error(`\nbudget cap hit ($${o.spent.toFixed(4)} of $${o.cap.toFixed(4)}) — stopping`); break;
-    case 'error': console.error(`\nerror: ${o.message}`); break;
+    case 'delta': process.stdout.write(o.text); inline = true; break;
+    case 'step': if (!o.toolCalls.length) { process.stdout.write('\n'); inline = false; } break;
+    case 'tool_ok':
+      if (inline) { process.stdout.write('\n'); inline = false; }
+      console.error(`  ✓ ${o.name} → ${String(o.result).split('\n')[0].slice(0, 110)}`);
+      break;
+    case 'tool_error': case 'tool_denied':
+      if (inline) { process.stdout.write('\n'); inline = false; }
+      console.error(`  ✗ ${o.name}: ${o.message || o.reason}`);
+      break;
+    case 'budget_exceeded':
+      if (inline) { process.stdout.write('\n'); inline = false; }
+      console.error(`budget cap hit ($${o.spent.toFixed(4)} of $${o.cap.toFixed(4)}) — stopping`);
+      break;
+    case 'error':
+      if (inline) { process.stdout.write('\n'); inline = false; }
+      console.error(`error: ${o.message}`);
+      break;
   }
 };
 

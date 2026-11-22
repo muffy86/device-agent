@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/OWNER/device-agent/security/advisories/new
+    about: Sandbox escapes, injection, egress. Draft advisory, not a public issue.
+  - name: Question
+    url: https://github.com/OWNER/device-agent/discussions
+    about: Usage questions and design discussion.

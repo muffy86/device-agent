@@ -6,30 +6,42 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+
       - name: No dependencies to install
         run: node -e "const p=require('./package.json'); if(Object.keys(p.dependencies||{}).length) { console.error('dependency crept in'); process.exit(1) }"
+
       - name: Unit tests
         run: npm test
+
       - name: Offline end-to-end demo (proves the loop works with no keys)
         run: |
           set -e
-          node apps/cli/index.js --mock --yes --data /tmp/ci --root . "summarize what is in this repo" | tee /tmp/out.txt
-          grep -q "package.json" /tmp/out.txt
+          mkdir -p /tmp/ws && printf '# demo\nhello\n' > /tmp/ws/README.md
+          node apps/cli/index.js --mock --yes --data /tmp/ci --root /tmp/ws "what is in this workspace" | tee /tmp/out.txt
+          grep -q "README.md" /tmp/out.txt
           node apps/cli/index.js --verify --data /tmp/ci
-      - name: Server smoke test
+
+      - name: The approval gate refuses, and the refusal is logged
+        run: node tools/demo-denial.js
+
+      - name: Server smoke test (auth, SSE, CORS, usage, memory rules)
         run: |
           DEVICE_AGENT_TOKEN=t DEVICE_AGENT_PROVIDER=mock PORT=8799 DEVICE_AGENT_DATA=/tmp/ci2 node apps/server/index.js &
           sleep 2
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8799/v1/chat -d '{}')" = "401"
           curl -s localhost:8799/healthz | grep -q '"ok": true'
+          curl -s -i -X OPTIONS localhost:8799/v1/chat | grep -qi 'access-control-allow-origin'
           curl -s -N -X POST localhost:8799/v1/chat -H 'authorization: Bearer t' \
             -H 'content-type: application/json' -d '{"task":"what is here"}' | grep -q 'fs.list'
+          curl -s -X POST localhost:8799/v1/memory -H 'authorization: Bearer t' \
+            -H 'content-type: application/json' -d '{"key":"k","value":"v"}' | grep -q 'provenance required'
+
       - name: Wallet check — the agent cannot climb out of its root
         run: |
           node -e "
@@ -39,3 +51,28 @@ jobs:
               () => { console.error('ESCAPED'); process.exit(1) },
               () => console.log('contained'));
           })"
+
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with { gradle-version: '8.7' }
+
+      # Compiles the shell on every PR, so Kotlin errors surface here rather
+      # than at release time. Unsigned debug build: no secrets needed.
+      - name: Assemble debug
+        run: gradle assembleDebug --no-daemon
+
+      - name: The APK must actually contain the web client
+        working-directory: apps/mobile/android
+        run: |
+          APK=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
+          unzip -l "$APK" | grep -q 'assets/index.html'
+          unzip -l "$APK" | grep -q 'AndroidManifest.xml'
+          echo "client bundled: $(unzip -l "$APK" | grep -c 'assets/') asset entries"

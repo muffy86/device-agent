@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">device-agent</string>
+
+    <!-- Shown verbatim on the system Accessibility screen. Say exactly what it
+         does: reviewers and users both read this. -->
+    <string name="accessibility_label">device-agent</string>
+    <string name="accessibility_summary">Lets the agent read the screen and act, only when you ask it to</string>
+    <string name="accessibility_description">device-agent uses accessibility to read what is on screen and press controls on your behalf. It acts only when you give it a task, every action is written to a local, tamper-evident log you can read, and actions stay disabled until you turn them on in Settings. No screen content is uploaded anywhere by this service.</string>
+</resources>

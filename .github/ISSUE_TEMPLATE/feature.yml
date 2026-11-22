@@ -1,0 +1,39 @@
+name: Feature request
+description: A tool, a provider, or a behaviour worth adding
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two questions decide most of these: does it make the receipt more trustworthy, or the
+        device surface more useful? Proposals that only make output feel better are declined.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What can't you do today
+    validations: { required: true }
+  - type: dropdown
+    id: axis
+    attributes:
+      label: Which axis
+      options:
+        - receipt / auditability
+        - device surface (tools)
+        - sandbox / safety
+        - providers / routing
+        - distribution (APK, packaging)
+    validations: { required: true }
+  - type: textarea
+    id: design
+    attributes:
+      label: Sketch
+      description: Tool name, parameters, whether it mutates, and what the refusal looks like.
+    validations: { required: false }
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This needs no new dependency in packages/core
+        - label: If it mutates anything, it is denied by default
+        - label: I can supply a test with the PR

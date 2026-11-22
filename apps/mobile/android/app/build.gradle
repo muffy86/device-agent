@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'app.deviceagent'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "app.deviceagent"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    // The client is the same single file the browser loads. One source of truth:
+    // edit apps/web/index.html and both the web tier and the APK change.
+    sourceSets {
+        main {
+            assets.srcDirs += ['../../../web']
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Signed in CI via -Pandroid.injected.signing.* (see .github/workflows/build-apk.yml)
+        }
+        debug {
+            applicationIdSuffix ".debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+    buildFeatures { buildConfig = true }
+    lint { abortOnError = false }
+}
+
+dependencies {
+    implementation 'androidx.activity:activity-ktx:1.9.2'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    // org.json is part of the platform; no dependency needed.
+}

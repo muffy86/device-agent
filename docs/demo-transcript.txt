@@ -1,0 +1,34 @@
+$ npm test
+# tests 10
+# pass 10
+# fail 0
+
+$ node apps/cli/index.js --mock --yes "what is in this workspace"
+provider=mock model=mock cap=$1
+Let me look before I answer. 
+  ✓ fs.list → - README.md (71b)
+Reading README.md for the actual contents. 
+  ✓ fs.read → # demo workspace
+Here is what is actually on disk:
+
+- README.md (71b)
+- notes.md (84b)
+# demo workspace
+
+Two files, so the listing stays readable in the GIF.
+
+
+That is read from your workspace, not described. 
+
+— 3 step(s), 696+66 tokens, $0.0000, 0.0s
+  ledger: /tmp/dl/events.jsonl  head f40b63a89a26…  (verify: --verify)
+
+$ node apps/cli/index.js --verify
+chain intact — 9 events, head f40b63a89a2689a6…
+
+$ node tools/demo-denial.js
+agent wants: fs.write {"path":"notes.md","content":"# notes\nrewritten by the model\n"}
+refused: approval withheld for fs.write
+file unchanged: true
+ledger seq 0: tool_denied  reason="approval withheld"  hash 39337ace3636…
+chain verify: intact

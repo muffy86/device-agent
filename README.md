@@ -16,6 +16,11 @@ try again. And again.
 
 This is the other shape: **a loop, a ledger, and a set of tools that are allowed to say no.**
 
+![device-agent demo](docs/demo.gif)
+
+*Real output, not staged: the test suite, one agent run, `--verify`, then the approval gate
+refusing a write. Regenerate with `python3 tools/make-demo-gif.py`.*
+
 ```console
 $ node apps/cli/index.js "what is in this repo"
 provider=mock model=mock cap=$1
@@ -127,9 +132,13 @@ Say these out loud before anyone stars it:
   beyond that. SQLite is the next step, not a rewrite.
 - No multi-tenant isolation beyond `principal` string partitioning. **Do not** run this as
   a shared SaaS for strangers without process/jail isolation per tenant.
-- Android screen control is not in this repo yet. It is the `android/` module in
-  [`docs/ANDROID.md`](docs/ANDROID.md) — accessibility service, approval prompt, and the
-  same ledger underneath.
+- Android screen control is in `apps/mobile/android/` (accessibility service, opt-in
+  mutations, loopback WebView shell, network security config allowing cleartext only to
+  localhost). **The Kotlin has not been compiled yet** — there is no Android SDK on the
+  machine it was written on. CI is the first compiler, and it will find things.
+- No Gradle wrapper is committed, so `apps/mobile/android` builds with the runner's Gradle
+  (see `.github/workflows/ci.yml`, job `android`). Add the wrapper if you want a pinned
+  local build.
 - Prompt injection is mitigated (no shell, egress allowlist, approval gate), not solved.
   Treat any tool output as adversarial input.
 
@@ -138,9 +147,23 @@ Say these out loud before anyone stars it:
 `ROADMAP.md` has the phase gates and the week counts. Short version:
 
 1. **v0.1** — this repo. Loop + ledger + CLI + API. Done.
-2. **v0.2** — Android shell (accessibility tools, on-device approval), F-Droid release.
+2. **v0.2** — Android shell: accessibility tools, on-device approval, F-Droid release.
+   The Gradle project, Kotlin service and icon are in `apps/mobile/android/`; CI compiles it.
 3. **v0.3** — hosted convenience tier: same code, `$5` of metered credit, receipt per run.
 4. **v0.4** — MCP client so the tool surface is other people's servers, not yours.
+
+Everything you need to ship this is in the repo, including the unglamorous parts:
+
+| I want to… | Read |
+|---|---|
+| launch it publicly | [`docs/LAUNCH-POST.md`](docs/LAUNCH-POST.md) — paste-ready Show HN, Reddit, X |
+| get paid this week | [`docs/MONEY-ROUTES.md`](docs/MONEY-ROUTES.md) — bounties, publishing, guardrail work |
+| build the APK | [`docs/ANDROID.md`](docs/ANDROID.md) — signing, Play's cut, F-Droid |
+| understand the design | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| price it honestly | [`docs/BUSINESS.md`](docs/BUSINESS.md) |
+| see the field | [`docs/RESEARCH.md`](docs/RESEARCH.md) |
+| attract contributors | [`docs/GOOD-FIRST-ISSUES.md`](docs/GOOD-FIRST-ISSUES.md) |
+| publish in one command | `tools/push-to-github.sh` |
 
 ## Why this shape and not another
 

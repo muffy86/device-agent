@@ -66,6 +66,14 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const route = `${req.method} ${url.pathname}`;
 
+  // The Android shell loads the client from file:// and talks to loopback, so
+  // the client's origin is opaque. CORS is required for that path; the bearer
+  // token (not the origin) is what actually authorises a request.
+  res.setHeader('access-control-allow-origin', '*');
+  res.setHeader('access-control-allow-headers', 'authorization, content-type');
+  res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
   if (route === 'GET /healthz')
     return json(res, 200, { ok: true, provider: createProvider().name, chain: ledger.verify(), spent: +ledger.spent().toFixed(4), cap: CAP });
 

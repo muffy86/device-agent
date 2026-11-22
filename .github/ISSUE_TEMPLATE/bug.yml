@@ -1,0 +1,44 @@
+name: Bug report
+description: Something behaved differently from how it is documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this is a sandbox escape (path traversal, command injection, egress), please open
+        a draft security advisory instead of a public issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: v0.1.0 or a commit sha
+    validations: { required: true }
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options: [mock, openai-compatible, anthropic, google, other]
+    validations: { required: true }
+  - type: textarea
+    id: ledger
+    attributes:
+      label: Ledger excerpt
+      description: Output of `node apps/cli/index.js --verify --data ./.data` plus the relevant lines.
+      render: shell
+    validations: { required: false }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Smallest reproduction
+      render: shell
+    validations: { required: false }
