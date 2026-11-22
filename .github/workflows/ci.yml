@@ -13,6 +13,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
 
+      # Both workflows once shipped unparseable, which GitHub reports as a
+      # 0-second failure with no logs. Never again: validate before anything else.
+      - name: Workflow files must be valid YAML with their triggers intact
+        run: |
+          pip install --quiet pyyaml
+          python3 tools/check-workflows.py
+
       - name: No dependencies to install
         run: node -e "const p=require('./package.json'); if(Object.keys(p.dependencies||{}).length) { console.error('dependency crept in'); process.exit(1) }"
 
@@ -60,9 +67,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with { distribution: temurin, java-version: 17 }
+        with: { distribution: temurin, java-version: 17 }
       - uses: gradle/actions/setup-gradle@v4
-        with { gradle-version: '8.7' }
+        with: { gradle-version: '8.7' }
 
       # Compiles the shell on every PR, so Kotlin errors surface here rather
       # than at release time. Unsigned debug build: no secrets needed.
