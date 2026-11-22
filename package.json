@@ -1,0 +1,19 @@
+{
+  "name": "device-agent",
+  "version": "0.1.0",
+  "description": "The open-source agent that runs on your phone. Your device, your keys, your memory, your ledger.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=18" },
+  "bin": { "device-agent": "./apps/cli/index.js" },
+  "files": ["apps", "packages", "docs", "README.md", "LICENSE"],
+  "scripts": {
+    "cli": "node apps/cli/index.js",
+    "serve": "node apps/server/index.js",
+    "demo": "node apps/cli/index.js --mock --yes 'summarize what is in this repo'",
+    "test": "node --test tests/",
+    "apk": "echo 'APK builds run on GitHub runners: .github/workflows/build-apk.yml'"
+  },
+  "dependencies": {},
+  "keywords": ["agent", "android", "on-device", "mcp", "llm", "autonomous", "self-hosted"]
+}

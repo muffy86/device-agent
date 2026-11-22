@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: No dependencies to install
+        run: node -e "const p=require('./package.json'); if(Object.keys(p.dependencies||{}).length) { console.error('dependency crept in'); process.exit(1) }"
+      - name: Unit tests
+        run: npm test
+      - name: Offline end-to-end demo (proves the loop works with no keys)
+        run: |
+          set -e
+          node apps/cli/index.js --mock --yes --data /tmp/ci --root . "summarize what is in this repo" | tee /tmp/out.txt
+          grep -q "package.json" /tmp/out.txt
+          node apps/cli/index.js --verify --data /tmp/ci
+      - name: Server smoke test
+        run: |
+          DEVICE_AGENT_TOKEN=t DEVICE_AGENT_PROVIDER=mock PORT=8799 DEVICE_AGENT_DATA=/tmp/ci2 node apps/server/index.js &
+          sleep 2
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8799/v1/chat -d '{}')" = "401"
+          curl -s localhost:8799/healthz | grep -q '"ok": true'
+          curl -s -N -X POST localhost:8799/v1/chat -H 'authorization: Bearer t' \
+            -H 'content-type: application/json' -d '{"task":"what is here"}' | grep -q 'fs.list'
+      - name: Wallet check — the agent cannot climb out of its root
+        run: |
+          node -e "
+          import('./packages/core/src/tools.js').then(({createRegistry}) => {
+            const r = createRegistry({root:'/tmp/wallet'});
+            return r.call('fs.read',{path:'../../etc/passwd'}).then(
+              () => { console.error('ESCAPED'); process.exit(1) },
+              () => console.log('contained'));
+          })"

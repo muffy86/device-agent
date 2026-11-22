@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>device-agent</title>
+<style>
+  :root { --bg:#0b0d10; --panel:#12161b; --line:#232a33; --text:#e6e9ee; --dim:#8b95a3; --acc:#6ee7a8; --warn:#f4a261; --bad:#ef6f6f; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,13,16,.92); backdrop-filter:blur(8px); }
+  header b { font-weight:650; letter-spacing:-.01em; }
+  header .sp { flex:1; }
+  .pill { font:11px/1 ui-monospace,monospace; padding:5px 8px; border:1px solid var(--line); border-radius:999px; color:var(--dim); }
+  .pill b { color:var(--acc); font-weight:600; }
+  #log { flex:1; overflow:auto; padding:16px 14px 40px; display:flex; flex-direction:column; gap:12px; }
+  .msg { max-width:min(760px,100%); padding:11px 13px; border-radius:12px; background:var(--panel); border:1px solid var(--line); white-space:pre-wrap; word-break:break-word; }
+  .me { align-self:flex-end; background:#182430; border-color:#24313f; }
+  .tool { align-self:flex-start; font:12px/1.5 ui-monospace,monospace; color:var(--dim); background:#0f1317; border-style:dashed; max-width:100%; }
+  .tool b { color:var(--acc); }
+  .tool.err b { color:var(--bad); }
+  .tool pre { margin:6px 0 0; white-space:pre-wrap; max-height:220px; overflow:auto; color:#aab4c2; }
+  .receipt { font:11px/1.6 ui-monospace,monospace; color:var(--dim); align-self:flex-start; border-left:2px solid var(--acc); padding-left:10px; }
+  form { display:flex; gap:8px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--panel); }
+  textarea { flex:1; resize:none; min-height:44px; max-height:180px; background:#0b0f13; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font:inherit; }
+  textarea:focus { outline:none; border-color:#33526a; }
+  button { border:0; border-radius:10px; padding:0 16px; background:var(--acc); color:#06210f; font-weight:650; cursor:pointer; }
+  button:disabled { opacity:.45; cursor:default; }
+  .setup { align-self:center; margin:8vh auto; width:min(420px,100%); display:grid; gap:10px; }
+  .setup h1 { font-size:18px; margin:0 0 2px; }
+  .setup p { color:var(--dim); font-size:13px; margin:0; }
+  .setup input { background:#0b0f13; border:1px solid var(--line); color:var(--text); border-radius:9px; padding:11px 12px; font:inherit; }
+  .hint { color:var(--dim); font:11px/1.5 ui-monospace,monospace; }
+</style>
+</head>
+<body>
+<header>
+  <b>device-agent</b>
+  <span class="pill" id="model">provider —</span>
+  <span class="sp"></span>
+  <span class="pill">spent <b id="spent">$0.0000</b></span>
+  <button class="pill" id="settings" style="background:none;color:var(--dim);font-weight:400;">settings</button>
+</header>
+
+<div id="log"></div>
+
+<form id="f">
+  <textarea id="q" rows="1" placeholder="Ask it to do something on your machine…" autocomplete="off"></textarea>
+  <button id="send">Run</button>
+</form>
+
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const log = $('#log');
+const store = {
+  get token() { return localStorage.getItem('da_token') || ''; },
+  set token(v) { localStorage.setItem('da_token', v); },
+};
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function bubble(text, cls = 'msg') {
+  const n = el('div', cls, text);
+  log.append(n);
+  log.scrollTop = log.scrollHeight;
+  return n;
+}
+
+function toolCard(pending) {
+  const n = el('div', 'msg tool');
+  const head = el('div', null);
+  head.innerHTML = `<b>${pending.name}</b> ${JSON.stringify(pending.args ?? {}).slice(0, 160)}`;
+  n.append(head);
+  log.append(n);
+  log.scrollTop = log.scrollHeight;
+  return n;
+}
+
+async function usage() {
+  if (!store.token) return;
+  try {
+    const r = await fetch('/v1/usage', { headers: { authorization: `Bearer ${store.token}` } });
+    if (!r.ok) return;
+    const j = await r.json();
+    $('#spent').textContent = `$${j.spent_usd.toFixed(4)}`;
+    $('#model').textContent = `cap $${j.cap_usd}`;
+  } catch {}
+}
+
+// First run: nothing but a token field. No account, no email, no trial wall.
+if (!store.token) {
+  const box = el('div', 'setup');
+  box.innerHTML = `
+    <h1>Connect to your agent</h1>
+    <p>Paste the token from <code>DEVICE_AGENT_TOKEN</code> in your .env. It stays in this browser.</p>
+    <input id="tok" placeholder="bearer token" />
+    <button id="go">Connect</button>
+    <p class="hint">This page talks to a server you are running. There is no cloud in the middle.</p>`;
+  log.append(box);
+  box.querySelector('#go').onclick = () => {
+    const v = box.querySelector('#tok').value.trim();
+    if (!v) return;
+    store.token = v;
+    location.reload();
+  };
+}
+
+$('#settings').onclick = () => {
+  const t = prompt('Bearer token (blank clears):', store.token);
+  if (t === null) return;
+  store.token = t.trim();
+  location.reload();
+};
+
+$('#q').addEventListener('input', (e) => {
+  e.target.style.height = 'auto';
+  e.target.style.height = Math.min(e.target.scrollHeight, 180) + 'px';
+});
+$('#q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f').requestSubmit(); }
+});
+
+// Streaming: read the SSE body ourselves so step/tool events render live
+// instead of appearing all at once at the end.
+$('#f').onsubmit = async (e) => {
+  e.preventDefault();
+  const task = $('#q').value.trim();
+  if (!task || !store.token) return;
+  $('#q').value = ''; $('#q').style.height = '';
+  bubble(task, 'msg me');
+  $('#send').disabled = true;
+
+  const out = bubble('');
+  let card = null;
+
+  try {
+    const res = await fetch('/v1/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${store.token}` },
+      body: JSON.stringify({ task }),
+    });
+    if (!res.ok) {
+      out.textContent = `HTTP ${res.status}: ${await res.text()}`;
+      out.style.borderColor = 'var(--bad)';
+      return;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i).trim();
+        buf = buf.slice(i + 2);
+        if (!chunk.startsWith('data:')) continue;
+        const evt = JSON.parse(chunk.slice(5).trim());
+        if (evt.type === 'delta') { out.textContent += evt.text; log.scrollTop = log.scrollHeight; }
+        else if (evt.type === 'tool_ok' || evt.type === 'tool_error') {
+          const c = toolCard({ name: evt.name, args: evt.args });
+          if (evt.type === 'tool_error') { c.classList.add('err'); c.append(el('pre', null, evt.message)); }
+          else c.append(el('pre', null, String(evt.result).slice(0, 1200)));
+          card = c;
+        } else if (evt.type === 'tool_denied' || evt.type === 'budget_exceeded' || evt.type === 'error') {
+          bubble(evt.message || evt.reason || `budget cap hit: $${evt.spent}`, 'msg tool err');
+        } else if (evt.type === 'receipt') {
+          const r = el('div', 'receipt',
+            `${evt.steps} step(s) · ${evt.tokens.in}+${evt.tokens.out} tok · cost $${evt.usd.toFixed(4)} · billable $${evt.billable_usd.toFixed(4)} · head ${String(evt.head || '').slice(0, 10)}…`);
+          log.append(r);
+          $('#spent').textContent = `$${((evt.usd || 0)).toFixed(4)}`;
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+    }
+  } catch (err) {
+    out.textContent = 'connection lost: ' + err.message;
+  } finally {
+    $('#send').disabled = false;
+    $('#q').focus();
+  }
+};
+
+usage();
+</script>
+</body>
+</html>

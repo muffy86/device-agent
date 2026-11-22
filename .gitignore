@@ -1,0 +1,10 @@
+node_modules/
+.data/
+*.jks
+.env
+.env.local
+release.jks
+*.apk
+*.aab
+.DS_Store
+coverage/

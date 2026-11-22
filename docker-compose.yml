@@ -1,0 +1,24 @@
+# Self-hosted, single-user. For multi-tenant use, add per-tenant isolation first
+# (see docs/ARCHITECTURE.md failure modes) — do not expose this to strangers.
+
+services:
+  device-agent:
+    build: .
+    image: device-agent:0.1.0
+    ports: ['8787:8787']
+    environment:
+      DEVICE_AGENT_PROVIDER: ${DEVICE_AGENT_PROVIDER:-mock}
+      DEVICE_AGENT_MODEL: ${DEVICE_AGENT_MODEL:-}
+      DEVICE_AGENT_TOKEN: ${DEVICE_AGENT_TOKEN:?set a token, do not run this open}
+      DEVICE_AGENT_BUDGET_USD: ${DEVICE_AGENT_BUDGET_USD:-1.00}
+      DEVICE_AGENT_ALLOW_SHELL: 'false'
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./data:/app/.data          # the ledger lives here. back this up, verify it.
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
