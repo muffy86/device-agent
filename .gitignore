@@ -8,3 +8,6 @@ release.jks
 *.aab
 .DS_Store
 coverage/
+*.jks.b64
+keystore-password.txt
+*.keystore
