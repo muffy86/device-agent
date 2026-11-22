@@ -10,7 +10,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { runAgent, DEFAULT_SYSTEM } from '../../packages/core/src/agent.js';
 import { createProvider } from '../../packages/core/src/providers.js';
@@ -62,6 +62,7 @@ function principalOf(req) {
   return token;
 }
 
+export function startServer({ port = PORT } = {}) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const route = `${req.method} ${url.pathname}`;
@@ -195,9 +196,16 @@ function verifyStripe(payload, header, secret) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-server.listen(PORT, () => {
-  console.log(`device-agent listening on http://127.0.0.1:${PORT}`);
-  console.log(`  provider  ${createProvider().name}`);
-  console.log(`  data      ${path.resolve(DATA)}`);
-  console.log(`  cap       $${CAP} per principal (markup ${MARKUP}x on hosted mode)`);
-});
+  server.listen(port, () => {
+    console.log(`device-agent listening on http://127.0.0.1:${port}`);
+    console.log(`  provider  ${createProvider().name}`);
+    console.log(`  data      ${path.resolve(DATA)}`);
+    console.log(`  cap       $${CAP} per principal (markup ${MARKUP}x on hosted mode)`);
+  });
+  return { server, ledger, registry };
+}
+
+// Only auto-listen when this file is the entry point. Without this guard,
+// importing the module for tests starts a server and the test process never
+// exits — which is exactly what happened the first time this was tested.
+if (process.argv[1] && process.argv[1].endsWith('server.js')) startServer();

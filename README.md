@@ -4,7 +4,7 @@
 
 **The agent that runs on your own hardware, keeps a receipt, and cannot bill you for work it did not do.**
 
-`0 dependencies` · `~1,200 lines` · `runs on a phone` · `Apache-2.0`
+`0 dependencies` · `~1,400 lines` · `runs on a phone` · `Apache-2.0`
 
 </div>
 
@@ -46,7 +46,7 @@ Three properties, and they are the whole product:
 
 ```bash
 git clone <this repo> device-agent && cd device-agent
-npm test                 # 10 tests, no install step, no network
+npm test                 # 17 tests, no install step, no network
 npm run demo             # full agent loop against the offline mock provider
 npm run serve            # http://127.0.0.1:8787 with the web client
 ```
