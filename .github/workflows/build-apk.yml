@@ -4,6 +4,12 @@ name: build-apk
 # No Gradle wrapper is committed; the runner supplies Gradle, so there is no
 # binary blob in the repo and nothing to trust.
 
+# The default GITHUB_TOKEN is read-only. Creating a release needs contents:write,
+# and without it the workflow builds the APK successfully and then fails at the
+# last step with a 403.
+permissions:
+  contents: write
+
 on:
   push:
     tags: ['v*']

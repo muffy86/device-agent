@@ -205,7 +205,8 @@ function verifyStripe(payload, header, secret) {
   return { server, ledger, registry };
 }
 
-// Only auto-listen when this file is the entry point. Without this guard,
-// importing the module for tests starts a server and the test process never
-// exits — which is exactly what happened the first time this was tested.
-if (process.argv[1] && process.argv[1].endsWith('server.js')) startServer();
+// Only auto-listen when this exact file is the entry point. Comparing resolved
+// paths, not a filename suffix: the first version of this guard checked for
+// "server.js" while the file is index.js, so the server silently never started —
+// in the CLI, in the docs, and in CI.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) startServer();
