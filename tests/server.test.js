@@ -7,6 +7,7 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -20,12 +21,18 @@ process.env.DEVICE_AGENT_PROVIDER = 'mock';
 process.env.DEVICE_AGENT_DATA = DIR;
 process.env.DEVICE_AGENT_ROOT = path.join(DIR, 'workspace');
 process.env.DEVICE_AGENT_BUDGET_USD = '5';
+process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
 
 let server;
 const base = `http://127.0.0.1:${PORT}`;
 const call = (p, init = {}) => fetch(base + p, init);
 const authed = (p, init = {}) =>
   fetch(base + p, { ...init, headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json', ...(init.headers || {}) } });
+const stripeSig = (payload) => {
+  const t = Math.floor(Date.now() / 1000);
+  const v1 = createHmac('sha256', process.env.STRIPE_WEBHOOK_SECRET).update(`${t}.${payload}`).digest('hex');
+  return `t=${t},v1=${v1}`;
+};
 
 before(async () => {
   fs.mkdirSync(path.join(DIR, 'workspace'), { recursive: true });
@@ -48,6 +55,26 @@ test('healthz is public and reports the chain state', async () => {
 test('an unauthenticated request is refused', async () => {
   const r = await call('/v1/chat', { method: 'POST', body: JSON.stringify({ task: 'hi' }) });
   assert.equal(r.status, 401);
+});
+
+test('a Stripe-signed webhook grants credits without bearer auth', async () => {
+  const payload = JSON.stringify({
+    id: 'evt_test_device_agent',
+    type: 'checkout.session.completed',
+    data: { object: { client_reference_id: 'p_customer', metadata: { credits_usd: '7' } } },
+  });
+  const r = await call('/v1/billing/webhook', {
+    method: 'POST',
+    headers: { 'stripe-signature': stripeSig(payload) },
+    body: payload,
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { received: true });
+
+  const { openLedger } = await import('../packages/core/src/ledger.js');
+  assert.equal(openLedger({ dir: DIR }).spent('p_customer'), 0);
+  const rows = fs.readFileSync(path.join(DIR, 'events.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.ok(rows.some((r) => r.kind === 'credit_granted' && r.principal === 'p_customer' && r.payload.usd === 7));
 });
 
 test('the authenticated path works — this is the one that was broken', async () => {

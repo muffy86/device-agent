@@ -85,6 +85,19 @@ const server = http.createServer(async (req, res) => {
     return res.end(fs.readFileSync(f));
   }
 
+  if (route === 'POST /v1/billing/webhook') {
+    const raw = await readBody(req);
+    const sig = req.headers['stripe-signature'] || '';
+    if (!verifyStripe(raw, sig, process.env.STRIPE_WEBHOOK_SECRET))
+      return json(res, 400, { error: 'bad signature' });
+    const evt = JSON.parse(raw);
+    if (evt.type === 'checkout.session.completed') {
+      const usd = Number(evt.data?.object?.metadata?.credits_usd ?? 0);
+      ledger.append('credit_granted', { usd, source: 'stripe', event: evt.id }, { principal: evt.data?.object?.client_reference_id || 'unknown' });
+    }
+    return json(res, 200, { received: true });
+  }
+
   const token = principalOf(req);
   if (!tokenMatches(token, TOKEN)) return json(res, 401, { error: 'unauthorized' });
   // Never log the token, and never derive an id from it that leaks its prefix:
@@ -164,19 +177,6 @@ const server = http.createServer(async (req, res) => {
     });
     const j = await r.json();
     return json(res, r.ok ? 200 : 502, { url: j.url, id: j.id, error: j.error?.message });
-  }
-
-  if (route === 'POST /v1/billing/webhook') {
-    const raw = await readBody(req);
-    const sig = req.headers['stripe-signature'] || '';
-    if (!verifyStripe(raw, sig, process.env.STRIPE_WEBHOOK_SECRET))
-      return json(res, 400, { error: 'bad signature' });
-    const evt = JSON.parse(raw);
-    if (evt.type === 'checkout.session.completed') {
-      const usd = Number(evt.data?.object?.metadata?.credits_usd ?? 0);
-      ledger.append('credit_granted', { usd, source: 'stripe', event: evt.id }, { principal: evt.data?.object?.client_reference_id || 'unknown' });
-    }
-    return json(res, 200, { received: true });
   }
 
   json(res, 404, { error: 'no such route', routes: ['GET /', 'GET /healthz', 'GET /v1/usage', 'GET /v1/memory', 'POST /v1/memory', 'POST /v1/chat', 'POST /v1/billing/checkout', 'POST /v1/billing/webhook'] });
