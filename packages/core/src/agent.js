@@ -103,9 +103,24 @@ export async function runAgent({
 /** Loads .env by hand so there is no dotenv dependency. */
 export function loadEnv(file = '.env') {
   try {
-    for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
-      const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    for (const raw of fs.readFileSync(file, 'utf8').split('\n')) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      const m = /^([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
+      if (!m || process.env[m[1]]) continue;
+      let value = m[2].trim();
+      const quote = value[0];
+      if (quote === '"' || quote === "'") {
+        const end = value.lastIndexOf(quote);
+        if (end > 0) {
+          const rest = value.slice(end + 1).trim();
+          if (!rest || rest.startsWith('#')) value = value.slice(1, end); // keep '#' inside quoted values
+        }
+      } else {
+        const comment = value.indexOf(' #');
+        if (comment !== -1) value = value.slice(0, comment).trim();
+      }
+      process.env[m[1]] = value;
     }
   } catch { /* no .env is fine */ }
 }
