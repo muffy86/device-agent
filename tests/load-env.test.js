@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { loadEnv } from '../packages/core/src/agent.js';
 
-const KEYS = ['ENV_QUOTED', 'ENV_COMMENT', 'ENV_BLANK', 'ENV_SPACED', 'ENV_SINGLE', 'ENV_PRESENT'];
+const KEYS = ['ENV_QUOTED', 'ENV_COMMENT', 'ENV_BLANK', 'ENV_SPACED', 'ENV_SINGLE', 'ENV_PRESENT',
+  'ENV_QCOMMENT', 'ENV_QHASH', 'ENV_DANGLE'];
 
 function withFixture(body, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'device-agent-env-'));
@@ -44,5 +45,26 @@ test('loadEnv does not overwrite an existing process.env value', () => {
     process.env.ENV_PRESENT = 'from-env';
     loadEnv(file);
     assert.equal(process.env.ENV_PRESENT, 'from-env');
+  });
+});
+
+test('loadEnv strips quotes before a trailing inline comment', () => {
+  withFixture('ENV_QCOMMENT="my-secret" # comment\n', (file) => {
+    loadEnv(file);
+    assert.equal(process.env.ENV_QCOMMENT, 'my-secret');
+  });
+});
+
+test('loadEnv keeps a hash inside quoted values with a trailing comment', () => {
+  withFixture('ENV_QHASH="value # with hash" # comment\n', (file) => {
+    loadEnv(file);
+    assert.equal(process.env.ENV_QHASH, 'value # with hash');
+  });
+});
+
+test('loadEnv treats a dangling quote as a literal value', () => {
+  withFixture('ENV_DANGLE="\n', (file) => {
+    loadEnv(file);
+    assert.equal(process.env.ENV_DANGLE, '"');
   });
 });
